@@ -1,0 +1,27 @@
+{
+  "manifest_version": 2,
+  "name": "scalerstream",
+  "version": "1.0",
+  "description":"view-scaler-live-stream", 
+  "permissions": [
+    "cookies",
+    "storage",
+    "*://*.scaler.com/*"
+  ],
+  "browser_action": {
+    "default_title": "Open Stream"
+  },
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "scalerstream@scaler.extension",
+      "data_collection_permissions": {
+        "allows_personal_data_collection": false,
+        "required": ["none"]
+      }
+    }
+  },
+  "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'"
+}

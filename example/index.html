@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Agora Video.js Integration</title>
+    <link href="https://vjs.zencdn.net/7.17.0/video-js.css" rel="stylesheet" />
+</head>
+<body>
+    <h1>Agora Video.js Integration</h1>
+    <div id="videos">
+        <div id="screenshare-container" style="width: 80%; float: left;">
+            <video id="screenshare-video" class="video-js vjs-default-skin" controls preload="auto" width="100%" height="100%"></video>
+        </div>
+        <div id="facecam-container" style="width: 20%; float: right;">
+            <video id="facecam-video" autoplay playsinline></video>
+        </div>
+    </div>
+
+    <script src="https://vjs.zencdn.net/7.17.0/video.js"></script>
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

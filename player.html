@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream VW</title>
+    <script src="agora-sdk.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f1115;
+            --sidebar-bg: #181a1f;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --text-primary: #ffffff;
+            --text-secondary: #9ca3af;
+            --danger-color: #ef4444;
+            --success-color: #22c55e;
+            --border-color: #2d3748;
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* --- Main Stage Area --- */
+        .stage-area {
+            flex: 1;
+            position: relative;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* Video Containers */
+        #live-video-container, #dvr-video-player {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            position: absolute;
+            top: 0; left: 0;
+        }
+
+        #dvr-video-player { display: none; }
+
+        /* --- Custom Controls Overlay --- */
+        .video-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 60; /* Above PiP */
+        }
+
+        .stage-area:hover .video-controls {
+            opacity: 1;
+        }
+
+        /* Timeline */
+        .timeline-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .timeline-fill {
+            height: 100%;
+            background: var(--accent-color);
+            width: 100%; /* Default to live */
+            border-radius: 3px;
+            position: absolute;
+            top: 0; left: 0;
+            pointer-events: none;
+        }
+
+        .timeline-input {
+            position: absolute;
+            top: -5px; left: 0;
+            width: 100%;
+            height: 16px;
+            opacity: 0;
+            cursor: pointer;
+            z-index: 2;
+        }
+
+        /* Control Buttons Row */
+        .controls-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .left-controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .play-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 20px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .time-display {
+            font-size: 13px;
+            font-variant-numeric: tabular-nums;
+            font-weight: 500;
+        }
+
+        .live-badge-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #aaa;
+            text-transform: uppercase;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: var(--transition);
+        }
+
+        .live-badge-btn::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #666;
+        }
+
+        .live-badge-btn.is-live {
+            color: #fff;
+        }
+        
+        .live-badge-btn.is-live::before {
+            background-color: var(--danger-color);
+        }
+
+        /* --- Sidebar PiP --- */
+        .sidebar .pip-window {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #1a1a1a;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            box-shadow: none;
+            overflow: hidden;
+            cursor: default;
+            transition: var(--transition);
+        }
+
+        .sidebar .pip-window:hover {
+            /* Subtle accent in the sidebar */
+            border-color: var(--accent-color);
+        }
+
+        .pip-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            pointer-events: none;
+        }
+
+        .pip-label {
+            position: absolute;
+            top: 6px; left: 6px;
+            background: rgba(0,0,0,0.6);
+            padding: 2px 6px;
+            font-size: 11px;
+            border-radius: 4px;
+            pointer-events: none;
+            color: var(--text-secondary);
+        }
+
+        /* --- Sidebar Controls --- */
+        .sidebar {
+            width: 280px;
+            background-color: var(--sidebar-bg);
+            border-left: 1px solid var(--border-color);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            z-index: 40;
+        }
+
+        .sidebar-header { display: flex; flex-direction: column; gap: 4px; }
+        .app-title { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+        .app-subtitle { font-size: 13px; color: var(--text-secondary); }
+
+        .control-group { display: flex; flex-direction: column; gap: 12px; }
+        .group-label { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 1px; }
+
+        .btn {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; padding: 12px 16px; border: none; border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.05); color: var(--text-primary);
+            font-size: 14px; font-weight: 600; cursor: pointer; transition: var(--transition);
+        }
+        .btn:hover:not(:disabled) { background-color: rgba(255, 255, 255, 0.1); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn.primary { background-color: var(--accent-color); }
+        .btn.danger { background-color: rgba(239, 68, 68, 0.2); color: var(--danger-color); }
+
+        .status-card {
+            background: rgba(0, 0, 0, 0.2); border-radius: 8px; padding: 12px;
+            border: 1px solid var(--border-color);
+        }
+        .status-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+        .status-label { color: var(--text-secondary); }
+        .status-value { font-weight: 600; }
+
+        /* Force Agora Video Fit */
+        .agora_video_player { object-fit: contain !important; }
+        
+        /* Popout Button Style */
+        .btn-popout {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid #444;
+            color: #fff;
+            padding: 5px 10px;
+            cursor: pointer;
+            z-index: 100;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main Stage -->
+    <div class="stage-area" id="main-stage">
+        <!-- Live Container -->
+        <div id="live-video-container"></div>
+        <!-- DVR Player (Hidden by default) -->
+        <video id="dvr-video-player" playsinline></video>
+        
+        <!-- Unified Controls Overlay -->
+        <div class="video-controls">
+            <div class="timeline-container">
+                <div class="timeline-fill" id="timeline-fill"></div>
+                <input type="range" min="0" max="100" value="100" class="timeline-input" id="timeline-slider">
+            </div>
+            
+            <div class="controls-row">
+                <div class="left-controls">
+                    <button class="play-btn" id="play-pause-btn">⏸</button>
+                    <span class="time-display" id="time-display">00:00 / 00:00</span>
+                </div>
+                
+                <button class="live-badge-btn is-live" id="live-badge">
+                    LIVE
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Controls -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1 class="app-title">Stream VW</h1>
+            <p class="app-subtitle" id="config-status">Initializing...</p>
+        </div>
+
+        <div class="pip-window" id="pip-window" style="display: none;">
+            <div id="pip-video-container" class="pip-video"></div>
+            <div class="pip-label" id="pip-label">Secondary</div>
+        </div>
+
+        <div class="control-group" style="margin-top: auto;">
+            <div class="status-card">
+                <div class="status-row">
+                    <span class="status-label">Status</span>
+                    <span class="status-value" id="connection-status">Connecting...</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Recording</span>
+                    <span class="status-value" id="recording-status">Waiting...</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Buffer</span>
+                    <span class="status-value" id="buffer-size">0.0 MB</span>
+                </div>
+            </div>
+            
+            <button class="btn danger" id="btn-download" disabled>
+                <span>⬇</span> Download Recording
+            </button>
+        </div>
+    </aside>
+
+<script src="player.js"></script>
+</body>
+</html>
